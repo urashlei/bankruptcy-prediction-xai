@@ -3,57 +3,57 @@ from scipy.io import arff
 import urllib.request
 import zipfile
 import os
-
-# BƯỚC 1: TẢI VÀ GIẢI NÉN DỮ LIỆU
-url = "https://archive.ics.uci.edu/static/public/365/polish+companies+bankruptcy+data.zip"
-zip_path = "polish_bankruptcy.zip"
-extract_folder = "polish_data"
-
-if not os.path.exists(extract_folder):
-    print("Đang tải dữ liệu từ UCI...")
-    urllib.request.urlretrieve(url, zip_path)
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        zip_ref.extract('3year.arff', path=extract_folder)
-    print("Đã tải và giải nén xong!")
+from pathlib import Path
 
 
-# BƯỚC 2: ĐỌC FILE 3rdYear.arff VÀ CHUYỂN SANG DATAFRAME
-file_path = os.path.join(extract_folder, "3year.arff")
-print(f"\nĐang đọc file: {file_path}")
+def download_and_check():
+    # Tạo thư mục data/raw
+    raw_dir = Path("data/raw")
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
-data, meta = arff.loadarff(file_path)
-df = pd.DataFrame(data)
+    zip_url = "https://archive.ics.uci.edu/static/public/365/polish+companies+bankruptcy+data.zip"
+    zip_path = "polish_bankruptcy.zip"
+    arff_file = "3year.arff"
+    csv_path = raw_dir / "3year.csv"
 
-# Chuyển đổi cột target ('class') từ định dạng byte sang integer (0 và 1)
-if df['class'].dtype == 'object':
-    df['class'] = df['class'].str.decode('utf-8')
-df['class'] = df['class'].astype(int)
+    # Tải, giải nén và chuyển đổi nếu file CSV chưa tồn tại
+    if not csv_path.exists():
+        print("Đang tải dữ liệu từ UCI...")
+        urllib.request.urlretrieve(zip_url, zip_path)
+
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            print(f"Đang giải nén {arff_file}...")
+            zip_ref.extract(arff_file, path=raw_dir)
+
+        print("Đang chuyển đổi ARFF sang CSV...")
+        data, meta = arff.loadarff(raw_dir / arff_file)
+        df = pd.DataFrame(data)
+
+        # Decode cột class
+        if df['class'].dtype == 'object':
+            df['class'] = df['class'].str.decode('utf-8').astype(int)
+
+        df.to_csv(csv_path, index=False)
+
+        # Dọn dẹp file thừa
+        os.remove(zip_path)
+        os.remove(raw_dir / arff_file)
+        print(f"Đã lưu dữ liệu gốc tại: {csv_path}\n")
+
+    # Kiểm tra dữ liệu
+    print("--- KIỂM TRA DỮ LIỆU THÔ ---")
+    df = pd.read_csv(csv_path)
+    print(f"Kích thước dữ liệu: {df.shape}")
+
+    target_col = df.columns[-1]
+    bankrupt_count = df[target_col].sum()
+    normal_count = df.shape[0] - bankrupt_count
+
+    print(f"Số mẫu không phá sản (Class 0): {normal_count}")
+    print(f"Số mẫu phá sản (Class 1): {bankrupt_count}")
+    print(f"Tỷ lệ mất cân bằng: {bankrupt_count / df.shape[0] * 100:.2f}%")
+    print(f"Tổng số giá trị thiếu (Missing values): {df.isnull().sum().sum()}")
 
 
-# BƯỚC 3: XUẤT BÁO CÁO EDA NHANH
-print("\n--- BÁO CÁO EDA SƠ BỘ ---")
-print(f"Tổng số quan sát: {df.shape[0]}")
-print(f"Tổng số features (không tính target): {df.shape[1] - 1}")
-
-bankrupt_count = df['class'].sum()
-normal_count = df.shape[0] - bankrupt_count
-print(f"Số mẫu không phá sản (Class 0): {normal_count}")
-print(f"Số mẫu phá sản (Class 1): {bankrupt_count}")
-print(f"Tỷ lệ mất cân bằng: {bankrupt_count / df.shape[0] * 100:.2f}%")
-
-total_missing = df.isnull().sum().sum()
-cols_with_missing = (df.isnull().sum() > 0).sum()
-print(f"Tổng số giá trị thiếu (Missing values): {total_missing}")
-print(f"Số cột có giá trị thiếu: {cols_with_missing} / {df.shape[1] - 1}")
-
-
-# BƯỚC 4: LƯU FILE CSV SẠCH (CHƯA ĐIỀN MISSING)
-csv_output = "Polish_3rdYear_Cleaned.csv"
-df.to_csv(csv_output, index=False)
-print(f"\nĐã lưu dữ liệu định dạng CSV tại: {csv_output}")
-
-# Tách thử X và y để kiểm tra
-X = df.drop(columns=['class'])
-y = df['class']
-print("Shape của X:", X.shape)
-print("Shape của y:", y.shape)
+if __name__ == "__main__":
+    download_and_check()
