@@ -13,7 +13,7 @@
     <parameter key="encoding" value="SYSTEM"/>
     <process expanded="true">
       <operator activated="true" class="read_csv" compatibility="9.10.008" expanded="true" height="68" name="Read CSV" width="90" x="179" y="85">
-        <parameter key="csv_file" value="D:/Downloads/3year_clean.csv"/>
+        <parameter key="csv_file" value="D:/HK4/0. PPNC/3year.csv"/>
         <parameter key="column_separators" value=","/>
         <parameter key="trim_lines" value="false"/>
         <parameter key="use_quotes" value="true"/>
@@ -129,8 +129,8 @@
         <parameter key="leave_one_out" value="false"/>
         <parameter key="number_of_folds" value="5"/>
         <parameter key="sampling_type" value="stratified sampling"/>
-        <parameter key="use_local_random_seed" value="false"/>
-        <parameter key="local_random_seed" value="1992"/>
+        <parameter key="use_local_random_seed" value="true"/>
+        <parameter key="local_random_seed" value="42"/>
         <parameter key="enable_parallel_execution" value="true"/>
         <process expanded="true">
           <operator activated="true" class="replace_missing_values" compatibility="9.10.008" expanded="true" height="103" name="Replace Missing Values" width="90" x="45" y="85">
@@ -151,7 +151,7 @@
             <parameter key="default" value="average"/>
             <list key="columns"/>
           </operator>
-          <operator activated="true" class="metacost" compatibility="9.10.008" expanded="true" height="82" name="MetaCost" width="90" x="179" y="238">
+          <operator activated="true" class="metacost" compatibility="9.10.008" expanded="true" height="82" name="MetaCost" width="90" x="179" y="85">
             <parameter key="cost_matrix" value="[0.0 20.0;1.0 0.0]"/>
             <parameter key="use_subset_for_training" value="1.0"/>
             <parameter key="iterations" value="10"/>
@@ -160,7 +160,7 @@
             <parameter key="local_random_seed" value="1992"/>
             <process expanded="true">
               <operator activated="true" class="h2o:gradient_boosted_trees" compatibility="9.10.001" expanded="true" height="103" name="Gradient Boosted Trees (2)" width="90" x="246" y="34">
-                <parameter key="number_of_trees" value="50"/>
+                <parameter key="number_of_trees" value="100"/>
                 <parameter key="reproducible" value="false"/>
                 <parameter key="maximum_number_of_threads" value="4"/>
                 <parameter key="use_local_random_seed" value="false"/>
@@ -169,7 +169,7 @@
                 <parameter key="min_rows" value="10.0"/>
                 <parameter key="min_split_improvement" value="1.0E-5"/>
                 <parameter key="number_of_bins" value="20"/>
-                <parameter key="learning_rate" value="0.01"/>
+                <parameter key="learning_rate" value="0.1"/>
                 <parameter key="sample_rate" value="1.0"/>
                 <parameter key="distribution" value="AUTO"/>
                 <parameter key="early_stopping" value="false"/>
@@ -186,9 +186,12 @@
               <portSpacing port="sink_model" spacing="0"/>
             </process>
           </operator>
+          <operator activated="true" class="group_models" compatibility="9.10.008" expanded="true" height="103" name="Group Models" width="90" x="313" y="85"/>
           <connect from_port="training set" to_op="Replace Missing Values" to_port="example set input"/>
           <connect from_op="Replace Missing Values" from_port="example set output" to_op="MetaCost" to_port="training set"/>
-          <connect from_op="MetaCost" from_port="model" to_port="model"/>
+          <connect from_op="Replace Missing Values" from_port="preprocessing model" to_op="Group Models" to_port="models in 1"/>
+          <connect from_op="MetaCost" from_port="model" to_op="Group Models" to_port="models in 2"/>
+          <connect from_op="Group Models" from_port="model out" to_port="model"/>
           <portSpacing port="source_training set" spacing="0"/>
           <portSpacing port="sink_model" spacing="0"/>
           <portSpacing port="sink_through 1" spacing="0"/>
@@ -199,7 +202,8 @@
             <parameter key="create_view" value="false"/>
           </operator>
           <operator activated="true" class="performance_binominal_classification" compatibility="9.10.008" expanded="true" height="82" name="Performance" width="90" x="246" y="136">
-            <parameter key="manually_set_positive_class" value="false"/>
+            <parameter key="manually_set_positive_class" value="true"/>
+            <parameter key="positive_class" value="true"/>
             <parameter key="main_criterion" value="first"/>
             <parameter key="accuracy" value="true"/>
             <parameter key="classification_error" value="false"/>
@@ -207,11 +211,11 @@
             <parameter key="AUC (optimistic)" value="false"/>
             <parameter key="AUC" value="false"/>
             <parameter key="AUC (pessimistic)" value="false"/>
-            <parameter key="precision" value="false"/>
-            <parameter key="recall" value="false"/>
+            <parameter key="precision" value="true"/>
+            <parameter key="recall" value="true"/>
             <parameter key="lift" value="false"/>
             <parameter key="fallout" value="false"/>
-            <parameter key="f_measure" value="false"/>
+            <parameter key="f_measure" value="true"/>
             <parameter key="false_positive" value="false"/>
             <parameter key="false_negative" value="false"/>
             <parameter key="true_positive" value="false"/>
