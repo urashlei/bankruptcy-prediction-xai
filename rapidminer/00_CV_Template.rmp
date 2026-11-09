@@ -13,7 +13,7 @@
     <parameter key="encoding" value="SYSTEM"/>
     <process expanded="true">
       <operator activated="true" class="read_csv" compatibility="9.10.008" expanded="true" height="68" name="Read CSV" width="90" x="179" y="85">
-        <parameter key="csv_file" value="D:\uni\Nam2\Ki4\PPNCKH\bankruptcy-prediction-xai\data\raw\3year.csv"/>
+        <parameter key="csv_file" value="C:/Users/ADMIN/Downloads/3year.csv"/>
         <parameter key="column_separators" value=","/>
         <parameter key="trim_lines" value="false"/>
         <parameter key="use_quotes" value="true"/>
@@ -129,12 +129,12 @@
         <parameter key="leave_one_out" value="false"/>
         <parameter key="number_of_folds" value="5"/>
         <parameter key="sampling_type" value="stratified sampling"/>
-        <parameter key="use_local_random_seed" value="false"/>
-        <parameter key="local_random_seed" value="1992"/>
+        <parameter key="use_local_random_seed" value="true"/>
+        <parameter key="local_random_seed" value="42"/>
         <parameter key="enable_parallel_execution" value="true"/>
         <process expanded="true">
           <operator activated="true" class="replace_missing_values" compatibility="9.10.008" expanded="true" height="103" name="Replace Missing Values" width="90" x="45" y="85">
-            <parameter key="return_preprocessing_model" value="false"/>
+            <parameter key="return_preprocessing_model" value="true"/>
             <parameter key="create_view" value="false"/>
             <parameter key="attribute_filter_type" value="all"/>
             <parameter key="attribute" value=""/>
@@ -151,31 +151,33 @@
             <parameter key="default" value="average"/>
             <list key="columns"/>
           </operator>
-          <operator activated="true" class="concurrency:parallel_random_forest" compatibility="9.10.008" expanded="true" height="103" name="Random Forest" width="90" x="179" y="34">
+          <operator activated="true" class="h2o:gradient_boosted_trees" compatibility="9.10.001" expanded="true" height="103" name="Gradient Boosted Trees" width="90" x="179" y="34">
             <parameter key="number_of_trees" value="100"/>
-            <parameter key="criterion" value="gain_ratio"/>
-            <parameter key="maximal_depth" value="10"/>
-            <parameter key="apply_pruning" value="false"/>
-            <parameter key="confidence" value="0.1"/>
-            <parameter key="apply_prepruning" value="false"/>
-            <parameter key="minimal_gain" value="0.01"/>
-            <parameter key="minimal_leaf_size" value="2"/>
-            <parameter key="minimal_size_for_split" value="4"/>
-            <parameter key="number_of_prepruning_alternatives" value="3"/>
-            <parameter key="random_splits" value="false"/>
-            <parameter key="guess_subset_ratio" value="true"/>
-            <parameter key="subset_ratio" value="0.2"/>
-            <parameter key="voting_strategy" value="confidence vote"/>
+            <parameter key="reproducible" value="true"/>
+            <parameter key="maximum_number_of_threads" value="4"/>
             <parameter key="use_local_random_seed" value="true"/>
             <parameter key="local_random_seed" value="42"/>
-            <parameter key="enable_parallel_execution" value="true"/>
+            <parameter key="maximal_depth" value="5"/>
+            <parameter key="min_rows" value="10.0"/>
+            <parameter key="min_split_improvement" value="1.0E-5"/>
+            <parameter key="number_of_bins" value="20"/>
+            <parameter key="learning_rate" value="0.1"/>
+            <parameter key="sample_rate" value="1.0"/>
+            <parameter key="distribution" value="AUTO"/>
+            <parameter key="early_stopping" value="false"/>
+            <parameter key="stopping_rounds" value="1"/>
+            <parameter key="stopping_metric" value="AUTO"/>
+            <parameter key="stopping_tolerance" value="0.001"/>
+            <list key="monotone_constraints"/>
+            <parameter key="max_runtime_seconds" value="0"/>
+            <list key="expert_parameters"/>
           </operator>
-          <operator activated="true" class="group_models" compatibility="9.10.008" expanded="true" height="103" name="Group Models (2)" width="90" x="380" y="136"/>
+          <operator activated="true" class="group_models" compatibility="9.10.008" expanded="true" height="103" name="Group Models" width="90" x="313" y="187"/>
           <connect from_port="training set" to_op="Replace Missing Values" to_port="example set input"/>
-          <connect from_op="Replace Missing Values" from_port="example set output" to_op="Random Forest" to_port="training set"/>
-          <connect from_op="Replace Missing Values" from_port="preprocessing model" to_op="Group Models (2)" to_port="models in 1"/>
-          <connect from_op="Random Forest" from_port="model" to_op="Group Models (2)" to_port="models in 2"/>
-          <connect from_op="Group Models (2)" from_port="model out" to_port="model"/>
+          <connect from_op="Replace Missing Values" from_port="example set output" to_op="Gradient Boosted Trees" to_port="training set"/>
+          <connect from_op="Replace Missing Values" from_port="preprocessing model" to_op="Group Models" to_port="models in 1"/>
+          <connect from_op="Gradient Boosted Trees" from_port="model" to_op="Group Models" to_port="models in 2"/>
+          <connect from_op="Group Models" from_port="model out" to_port="model"/>
           <portSpacing port="source_training set" spacing="0"/>
           <portSpacing port="sink_model" spacing="0"/>
           <portSpacing port="sink_through 1" spacing="0"/>
@@ -186,7 +188,8 @@
             <parameter key="create_view" value="false"/>
           </operator>
           <operator activated="true" class="performance_binominal_classification" compatibility="9.10.008" expanded="true" height="82" name="Performance" width="90" x="246" y="136">
-            <parameter key="manually_set_positive_class" value="false"/>
+            <parameter key="manually_set_positive_class" value="true"/>
+            <parameter key="positive_class" value="true"/>
             <parameter key="main_criterion" value="first"/>
             <parameter key="accuracy" value="true"/>
             <parameter key="classification_error" value="false"/>
@@ -194,11 +197,11 @@
             <parameter key="AUC (optimistic)" value="false"/>
             <parameter key="AUC" value="false"/>
             <parameter key="AUC (pessimistic)" value="false"/>
-            <parameter key="precision" value="false"/>
-            <parameter key="recall" value="false"/>
+            <parameter key="precision" value="true"/>
+            <parameter key="recall" value="true"/>
             <parameter key="lift" value="false"/>
             <parameter key="fallout" value="false"/>
-            <parameter key="f_measure" value="false"/>
+            <parameter key="f_measure" value="true"/>
             <parameter key="false_positive" value="false"/>
             <parameter key="false_negative" value="false"/>
             <parameter key="true_positive" value="false"/>
@@ -216,6 +219,7 @@
           <connect from_port="test set" to_op="Apply Model" to_port="unlabelled data"/>
           <connect from_op="Apply Model" from_port="labelled data" to_op="Performance" to_port="labelled data"/>
           <connect from_op="Performance" from_port="performance" to_port="performance 1"/>
+          <connect from_op="Performance" from_port="example set" to_port="test set results"/>
           <portSpacing port="source_model" spacing="0"/>
           <portSpacing port="source_test set" spacing="0"/>
           <portSpacing port="source_through 1" spacing="0"/>
@@ -228,11 +232,13 @@
       <connect from_op="Numerical to Binominal" from_port="example set output" to_op="Set Role" to_port="example set input"/>
       <connect from_op="Set Role" from_port="example set output" to_op="Cross Validation" to_port="example set"/>
       <connect from_op="Cross Validation" from_port="model" to_port="result 1"/>
+      <connect from_op="Cross Validation" from_port="test result set" to_port="result 3"/>
       <connect from_op="Cross Validation" from_port="performance 1" to_port="result 2"/>
       <portSpacing port="source_input 1" spacing="0"/>
       <portSpacing port="sink_result 1" spacing="0"/>
       <portSpacing port="sink_result 2" spacing="0"/>
       <portSpacing port="sink_result 3" spacing="0"/>
+      <portSpacing port="sink_result 4" spacing="0"/>
     </process>
   </operator>
 </process>
