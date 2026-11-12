@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?><process version="9.10.008">
+<?xml version="1.0" encoding="UTF-8"?><process version="12.1.001">
   <context>
     <input/>
     <output/>
     <macros/>
   </context>
-  <operator activated="true" class="process" compatibility="9.10.008" expanded="true" name="Process">
+  <operator activated="true" class="process" compatibility="12.1.001" expanded="true" name="Process">
     <parameter key="logverbosity" value="init"/>
     <parameter key="random_seed" value="42"/>
     <parameter key="send_mail" value="never"/>
@@ -12,10 +12,11 @@
     <parameter key="process_duration_for_mail" value="30"/>
     <parameter key="encoding" value="SYSTEM"/>
     <process expanded="true">
-      <operator activated="true" class="read_csv" compatibility="9.10.008" expanded="true" height="68" name="Read CSV" width="90" x="179" y="85">
-        <parameter key="csv_file" value="C:/Users/ADMIN/Downloads/3year.csv"/>
+      <operator activated="true" class="read_csv" compatibility="10.2.000" expanded="true" height="68" name="Read CSV" width="90" x="179" y="85">
+        <parameter key="csv_file" value="C:/Users/ADMIN/PycharmProjects/bankruptcy-prediction-xai/data/raw/3year.csv"/>
         <parameter key="column_separators" value=","/>
         <parameter key="trim_lines" value="false"/>
+        <parameter key="multiline_text" value="false"/>
         <parameter key="use_quotes" value="true"/>
         <parameter key="quotes_character" value="&quot;"/>
         <parameter key="escape_character" value="\"/>
@@ -28,6 +29,8 @@
         <parameter key="grouping_character" value=","/>
         <parameter key="infinity_representation" value=""/>
         <parameter key="date_format" value=""/>
+        <parameter key="use_header_row" value="true"/>
+        <parameter key="header_row" value="1"/>
         <parameter key="first_row_as_names" value="true"/>
         <list key="annotations"/>
         <parameter key="time_zone" value="SYSTEM"/>
@@ -103,7 +106,7 @@
         </list>
         <parameter key="read_not_matching_values_as_missings" value="false"/>
       </operator>
-      <operator activated="true" class="numerical_to_binominal" compatibility="9.10.008" expanded="true" height="82" name="Numerical to Binominal" width="90" x="246" y="187">
+      <operator activated="true" class="numerical_to_binominal" compatibility="12.1.001" expanded="true" height="82" name="Numerical to Binominal" width="90" x="246" y="187">
         <parameter key="attribute_filter_type" value="single"/>
         <parameter key="attribute" value="class"/>
         <parameter key="attributes" value=""/>
@@ -119,12 +122,12 @@
         <parameter key="min" value="0.0"/>
         <parameter key="max" value="0.0"/>
       </operator>
-      <operator activated="true" class="set_role" compatibility="9.10.008" expanded="true" height="82" name="Set Role" width="90" x="380" y="85">
+      <operator activated="true" class="set_role" compatibility="12.1.001" expanded="true" height="82" name="Set Role" width="90" x="380" y="85">
         <parameter key="attribute_name" value="class"/>
         <parameter key="target_role" value="label"/>
         <list key="set_additional_roles"/>
       </operator>
-      <operator activated="true" class="concurrency:cross_validation" compatibility="9.10.008" expanded="true" height="145" name="Cross Validation" width="90" x="581" y="34">
+      <operator activated="true" class="concurrency:cross_validation" compatibility="10.0.000" expanded="true" height="145" name="Cross Validation" width="90" x="581" y="34">
         <parameter key="split_on_batch_attribute" value="false"/>
         <parameter key="leave_one_out" value="false"/>
         <parameter key="number_of_folds" value="5"/>
@@ -133,9 +136,8 @@
         <parameter key="local_random_seed" value="42"/>
         <parameter key="enable_parallel_execution" value="true"/>
         <process expanded="true">
-          <operator activated="true" class="replace_missing_values" compatibility="9.10.008" expanded="true" height="103" name="Replace Missing Values" width="90" x="45" y="85">
+          <operator activated="true" class="replace_missing_values" compatibility="12.1.001" expanded="true" height="103" name="Replace Missing Values" width="90" x="45" y="85">
             <parameter key="return_preprocessing_model" value="true"/>
-            <parameter key="create_view" value="false"/>
             <parameter key="attribute_filter_type" value="all"/>
             <parameter key="attribute" value=""/>
             <parameter key="attributes" value=""/>
@@ -151,7 +153,7 @@
             <parameter key="default" value="average"/>
             <list key="columns"/>
           </operator>
-          <operator activated="true" class="h2o:gradient_boosted_trees" compatibility="9.10.001" expanded="true" height="103" name="Gradient Boosted Trees" width="90" x="179" y="34">
+          <operator activated="true" class="h2o:gradient_boosted_trees" compatibility="11.0.003" expanded="true" height="103" name="Gradient Boosted Trees" width="90" x="179" y="34">
             <parameter key="number_of_trees" value="100"/>
             <parameter key="reproducible" value="true"/>
             <parameter key="maximum_number_of_threads" value="4"/>
@@ -172,7 +174,7 @@
             <parameter key="max_runtime_seconds" value="0"/>
             <list key="expert_parameters"/>
           </operator>
-          <operator activated="true" class="group_models" compatibility="9.10.008" expanded="true" height="103" name="Group Models" width="90" x="313" y="187"/>
+          <operator activated="true" class="group_models" compatibility="12.1.001" expanded="true" height="103" name="Group Models" width="90" x="313" y="187"/>
           <connect from_port="training set" to_op="Replace Missing Values" to_port="example set input"/>
           <connect from_op="Replace Missing Values" from_port="example set output" to_op="Gradient Boosted Trees" to_port="training set"/>
           <connect from_op="Replace Missing Values" from_port="preprocessing model" to_op="Group Models" to_port="models in 1"/>
@@ -183,11 +185,10 @@
           <portSpacing port="sink_through 1" spacing="0"/>
         </process>
         <process expanded="true">
-          <operator activated="true" class="apply_model" compatibility="9.10.008" expanded="true" height="82" name="Apply Model" width="90" x="112" y="34">
+          <operator activated="true" class="apply_model" compatibility="12.1.001" expanded="true" height="82" name="Apply Model" width="90" x="112" y="34">
             <list key="application_parameters"/>
-            <parameter key="create_view" value="false"/>
           </operator>
-          <operator activated="true" class="performance_binominal_classification" compatibility="9.10.008" expanded="true" height="82" name="Performance" width="90" x="246" y="136">
+          <operator activated="true" class="performance_binominal_classification" compatibility="12.1.001" expanded="true" height="82" name="Performance" width="90" x="246" y="34">
             <parameter key="manually_set_positive_class" value="true"/>
             <parameter key="positive_class" value="true"/>
             <parameter key="main_criterion" value="first"/>
