@@ -13,4 +13,4 @@
 
 ### Nguyên tắc chống rò rỉ dữ liệu (Data Leakage)
 - File `3year_clean.csv` CHỈ dùng cho phân tích mô tả.
-- Luồng huấn luyện mô hình bắt buộc đọc file thô `3year.csv`. Việc điền khuyết bằng trung vị (median) phải được tính toán và áp dụng cục bộ bên trong tập Training của từng Fold thuộc khối Cross-Validation.
+- Luồng huấn luyện mô hình bắt buộc đọc file thô `3year.csv`. Việc điền khuyết bằng trung bình cộng (average) phải được tính toán và áp dụng cục bộ bên trong tập Training của từng Fold thuộc khối Cross-Validation.
