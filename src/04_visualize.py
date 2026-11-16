@@ -15,7 +15,7 @@ OUTPUT_DIR = ROOT_DIR / "results" / "figures"
 
 RANKING_PATH = SHAP_DIR / "shap_ranking_by_model.csv"
 STABILITY_PATH = STABILITY_DIR / "stability_summary.csv"
-
+CROSS_METHOD_PATH = STABILITY_DIR / "cross_method_stability_summary.csv"
 
 # =========================================================
 # COLUMN HELPERS
@@ -114,6 +114,36 @@ def load_stability():
     if missing:
         raise ValueError(
             f"Thiếu cột trong stability_summary.csv: {missing}"
+        )
+
+    return df
+
+def load_cross_method_stability():
+
+    if not CROSS_METHOD_PATH.exists():
+        raise FileNotFoundError(
+            f"Không tìm thấy: {CROSS_METHOD_PATH}. "
+            "Hãy chạy 03_stability.py trước."
+        )
+
+    df = pd.read_csv(CROSS_METHOD_PATH)
+
+    required_columns = [
+        "model_family",
+        "method_a",
+        "method_b",
+        "kendall_tau_b_mean",
+        "jaccard_top10_mean",
+    ]
+
+    missing = [
+        col for col in required_columns
+        if col not in df.columns
+    ]
+
+    if missing:
+        raise ValueError(
+            f"Thiếu cột trong cross_method_stability_summary.csv: {missing}"
         )
 
     return df
@@ -369,6 +399,110 @@ def plot_combined_stability(stability_df):
 
     print(f"[SAVED] {output_path}")
 
+# =========================================================
+# FIGURE 5: CROSS-METHOD EXPLANATION STABILITY
+# =========================================================
+
+def plot_cross_method_stability(cross_df):
+
+    df = cross_df.copy()
+
+    df["comparison"] = (
+        df["method_a"] + " vs " + df["method_b"]
+    )
+
+    comparisons = [
+        "Baseline vs SMOTE",
+        "Baseline vs CostSensitive",
+        "SMOTE vs CostSensitive",
+    ]
+
+    families = ["RF", "GBT"]
+
+    metrics = [
+        ("kendall_tau_b_mean", "Kendall Tau-b"),
+        ("jaccard_top10_mean", "Jaccard Top-10"),
+    ]
+
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(16, 6),
+    )
+
+    for ax, (metric, metric_label) in zip(axes, metrics):
+
+        x = range(len(comparisons))
+        width = 0.35
+
+        for index, family in enumerate(families):
+
+            family_df = (
+                df[df["model_family"] == family]
+                .set_index("comparison")
+                .reindex(comparisons)
+            )
+
+            values = family_df[metric].tolist()
+
+            positions = [
+                i + (index - 0.5) * width
+                for i in x
+            ]
+
+            bars = ax.bar(
+                positions,
+                values,
+                width,
+                label=family,
+            )
+
+            ax.bar_label(
+                bars,
+                fmt="%.3f",
+                padding=3,
+                fontsize=8,
+            )
+
+        ax.set_title(metric_label)
+        ax.set_ylabel("Mean Similarity")
+        ax.set_ylim(0, 1)
+
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(
+            comparisons,
+            rotation=15,
+            ha="right",
+        )
+
+        ax.legend(title="Model family")
+        ax.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.3,
+        )
+
+    fig.suptitle(
+        "Cross-method SHAP Explanation Stability",
+        fontsize=15,
+    )
+
+    plt.tight_layout()
+
+    output_path = (
+        OUTPUT_DIR / "cross_method_stability.png"
+    )
+
+    fig.savefig(
+        output_path,
+        dpi=300,
+        bbox_inches="tight",
+    )
+
+    plt.close(fig)
+
+    print(f"[SAVED] {output_path}")
+
 
 # =========================================================
 # MAIN
@@ -387,11 +521,13 @@ def main():
 
     ranking_df = load_ranking()
     stability_df = load_stability()
+    cross_method_df = load_cross_method_stability()
 
     plot_shap_top10(ranking_df)
     plot_kendall_stability(stability_df)
     plot_jaccard_stability(stability_df)
     plot_combined_stability(stability_df)
+    plot_cross_method_stability(cross_method_df)
 
     print("\nHoàn thành 04_visualize.py")
     print(f"Biểu đồ được lưu tại: {OUTPUT_DIR}")
