@@ -179,6 +179,10 @@ bankruptcy-prediction-xai/
 │   └── processed/
 │       └── 3year_clean.csv
 │
+├── docs/
+│   ├── notes.md
+│   └── protocol.md
+│
 ├── models/
 │   └── reconstructed/
 │       ├── preprocessing/
