@@ -248,6 +248,201 @@ def calculate_pairwise_stability(model, fold_data):
 
 
 # =========================================================
+# CROSS-METHOD STABILITY
+# So sánh trực tiếp thứ hạng SHAP giữa Baseline, SMOTE,
+# và CostSensitive trong cùng họ mô hình và cùng fold ID.
+# =========================================================
+
+def get_model_family_and_method(model_name):
+    """
+    Ví dụ:
+        RF_Baseline       -> ("RF", "Baseline")
+        RF_SMOTE          -> ("RF", "SMOTE")
+        RF_CostSensitive  -> ("RF", "CostSensitive")
+        GBT_Baseline      -> ("GBT", "Baseline")
+    """
+    name = str(model_name)
+
+    for method in ("CostSensitive", "Baseline", "SMOTE"):
+        suffix = "_" + method
+        if name.endswith(suffix):
+            return name[:-len(suffix)], method
+
+    return None, None
+
+
+def calculate_cross_method_pair(
+    family,
+    method_a,
+    method_b,
+    model_a,
+    model_b,
+    fold_a,
+    fold_b,
+    df_a,
+    df_b,
+):
+    """
+    So sánh hai bảng SHAP của hai phương pháp trong cùng fold ID.
+    Kendall được tính trên thứ hạng của các feature chung.
+    Jaccard được tính trên tập Top-10 của mỗi phương pháp.
+    """
+    merged = pd.merge(
+        df_a[["feature", "mean_abs_shap"]],
+        df_b[["feature", "mean_abs_shap"]],
+        on="feature",
+        how="inner",
+        suffixes=("_a", "_b"),
+    )
+
+    if len(merged) < 2:
+        print(
+            f"[WARNING] Không đủ feature chung: "
+            f"{model_a} vs {model_b}, Fold {fold_a}"
+        )
+        return None
+
+    merged["rank_a"] = merged["mean_abs_shap_a"].rank(
+        method="average", ascending=False
+    )
+    merged["rank_b"] = merged["mean_abs_shap_b"].rank(
+        method="average", ascending=False
+    )
+
+    tau = calculate_kendall_tau(
+        merged["rank_a"],
+        merged["rank_b"],
+    )
+
+    top_a = (
+        df_a.sort_values("mean_abs_shap", ascending=False)
+        ["feature"].head(TOP_K).tolist()
+    )
+    top_b = (
+        df_b.sort_values("mean_abs_shap", ascending=False)
+        ["feature"].head(TOP_K).tolist()
+    )
+
+    return {
+        "model_family": family,
+        "method_a": method_a,
+        "method_b": method_b,
+        "model_a": model_a,
+        "model_b": model_b,
+        "fold": fold_a,
+        "n_common_features": len(merged),
+        "kendall_tau_b": tau,
+        "jaccard_top10": calculate_jaccard(top_a, top_b),
+        "top_k": TOP_K,
+    }
+
+
+def calculate_cross_method_stability(fold_data):
+    """
+    Tính các so sánh:
+      - Baseline vs SMOTE
+      - Baseline vs CostSensitive
+      - SMOTE vs CostSensitive
+
+    Chỉ ghép các fold có cùng nhãn fold trong hai cấu hình.
+    Việc cùng fold ID KHÔNG tự chứng minh rằng tập quan sát
+    train/validation của hai cấu hình giống hệt nhau.
+    """
+    results = []
+
+    required_comparisons = [
+        ("Baseline", "SMOTE"),
+        ("Baseline", "CostSensitive"),
+        ("SMOTE", "CostSensitive"),
+    ]
+
+    # Gom tên model theo họ và phương pháp
+    model_lookup = {}
+    for model in fold_data:
+        family, method = get_model_family_and_method(model)
+        if family is not None:
+            model_lookup[(family, method)] = model
+
+    families = sorted({
+        family
+        for family, method in model_lookup.keys()
+    })
+
+    for family in families:
+        for method_a, method_b in required_comparisons:
+            model_a = model_lookup.get((family, method_a))
+            model_b = model_lookup.get((family, method_b))
+
+            if model_a is None or model_b is None:
+                print(
+                    f"[WARNING] Thiếu cấu hình để so sánh "
+                    f"{family}: {method_a} vs {method_b}"
+                )
+                continue
+
+            folds_a = fold_data[model_a]
+            folds_b = fold_data[model_b]
+            common_folds = sorted(set(folds_a) & set(folds_b))
+
+            if not common_folds:
+                print(
+                    f"[WARNING] Không có fold ID chung: "
+                    f"{model_a} vs {model_b}"
+                )
+                continue
+
+            print(
+                f"[CROSS-METHOD] {model_a} vs {model_b}: "
+                f"{len(common_folds)} common fold IDs"
+            )
+
+            for fold in common_folds:
+                result = calculate_cross_method_pair(
+                    family=family,
+                    method_a=method_a,
+                    method_b=method_b,
+                    model_a=model_a,
+                    model_b=model_b,
+                    fold_a=fold,
+                    fold_b=fold,
+                    df_a=folds_a[fold],
+                    df_b=folds_b[fold],
+                )
+
+                if result is not None:
+                    results.append(result)
+
+    return results
+
+
+def summarize_cross_method_stability(cross_method_df):
+    """Tổng hợp trung bình và độ lệch chuẩn theo họ và cặp phương pháp."""
+    if cross_method_df.empty:
+        return pd.DataFrame()
+
+    return (
+        cross_method_df.groupby(
+            [
+                "model_family",
+                "method_a",
+                "method_b",
+                "model_a",
+                "model_b",
+            ],
+            as_index=False,
+        )
+        .agg(
+            n_common_folds=("fold", "nunique"),
+            kendall_tau_b_mean=("kendall_tau_b", "mean"),
+            kendall_tau_b_std=("kendall_tau_b", "std"),
+            jaccard_top10_mean=("jaccard_top10", "mean"),
+            jaccard_top10_std=("jaccard_top10", "std"),
+        )
+    )
+
+
+
+# =========================================================
 # MAIN
 # =========================================================
 
@@ -343,6 +538,56 @@ def main():
         summary_path,
         index=False,
     )
+
+    # -----------------------------------------------------
+    # So sánh trực tiếp giữa Baseline, SMOTE, CostSensitive
+    # -----------------------------------------------------
+    cross_method_results = calculate_cross_method_stability(
+        fold_data
+    )
+
+    if cross_method_results:
+        cross_method_df = pd.DataFrame(cross_method_results)
+
+        cross_method_detail_path = (
+            STABILITY_DIR / "cross_method_stability_detail.csv"
+        )
+        cross_method_df.to_csv(
+            cross_method_detail_path,
+            index=False,
+        )
+
+        cross_method_summary_df = summarize_cross_method_stability(
+            cross_method_df
+        )
+        cross_method_summary_path = (
+            STABILITY_DIR / "cross_method_stability_summary.csv"
+        )
+        cross_method_summary_df.to_csv(
+            cross_method_summary_path,
+            index=False,
+        )
+
+        print("\n" + "=" * 65)
+        print("CROSS-METHOD STABILITY SUMMARY")
+        print("=" * 65)
+        print(
+            cross_method_summary_df.to_string(
+                index=False,
+                float_format=lambda x: f"{x:.4f}",
+            )
+        )
+        print(f"Saved: {cross_method_detail_path}")
+        print(f"Saved: {cross_method_summary_path}")
+        print(
+            "\n[NOTE] Fold ID trung nhau chi la dieu kien ghep cap; "
+            "can xac nhan cac cau hinh dung cung tap train/validation."
+        )
+    else:
+        print(
+            "\n[WARNING] Không tạo được kết quả cross-method. "
+            "Kiểm tra tên model và CSV SHAP theo từng fold."
+        )
 
     print("\n" + "=" * 65)
     print("STABILITY SUMMARY")
